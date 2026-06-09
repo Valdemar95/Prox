@@ -14,25 +14,30 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download Image via Curl
+      - name: Download Image
         run: |
-          # Выводим промпт для отладки
-          echo "Prompt: ${{ github.event.client_payload.prompt }}"
+          # 1. Получаем чистый промпт и убираем лишние символы
+          RAW_PROMPT="${{ github.event.client_payload.prompt }}"
+          echo "Получен промпт: $RAW_PROMPT"
           
-          # Кодируем промпт
-          ENCODED_PROMPT=$(echo "${{ github.event.client_payload.prompt }}" | jq -sRr @uri)
+          # 2. Очищаем от переносов строк и лишних кавычек
+          CLEAN_PROMPT=$(echo "$RAW_PROMPT" | tr -d '\n\r"' | xargs)
+          
+          # 3. Кодируем для URL
+          ENCODED_PROMPT=$(echo "$CLEAN_PROMPT" | jq -sRr @uri)
+          
+          # 4. Формируем URL
           IMAGE_URL="https://image.pollinations.ai/p/${ENCODED_PROMPT}?width=1024&height=1024&nologo=true"
+          echo "Финальный URL для запроса: $IMAGE_URL"
           
-          echo "URL: $IMAGE_URL"
-          
-          # Скачиваем без флага -f, чтобы увидеть содержимое ошибки
+          # 5. Скачиваем
           curl -L -o slide1.jpg "$IMAGE_URL"
           
       - name: Check and Commit
         run: |
-          # Проверяем, не скачался ли текстовый файл вместо картинки
-          if grep -q "404" slide1.jpg || grep -q "Not Found" slide1.jpg; then
-            echo "::error::Сервер вернул 404. Проверьте промпт."
+          # Если файл меньше 1Кб, значит скачалась ошибка, а не картинка
+          if [ $(stat -c%s slide1.jpg) -lt 1000 ]; then
+            echo "::error::Картинка слишком мала (вероятно, это ошибка 404)"
             cat slide1.jpg
             exit 1
           fi
