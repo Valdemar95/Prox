@@ -7,28 +7,32 @@ on:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    # ЭТО КЛЮЧЕВОЙ МОМЕНТ: даем разрешение на запись в репозиторий
     permissions:
-      contents: write
+      contents: write # Обязательно для записи файлов
       
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Download Image via Curl
         run: |
+          # Кодируем промпт для URL
           ENCODED_PROMPT=$(echo "${{ github.event.client_payload.prompt }}" | jq -sRr @uri)
           curl -L -o slide1.jpg "https://image.pollinations.ai/p/${ENCODED_PROMPT}?width=1024&height=1024&nologo=true"
           
       - name: Commit and Push
         run: |
+          # Настраиваем личность робота
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Добавляем файл
           git add slide1.jpg
-          # Проверяем, есть ли изменения, чтобы не было ошибки при коммите
-          if ! git diff --quiet; then
-            git commit -m "Generated new slide from n8n"
+          
+          # Коммитим, только если есть изменения
+          if ! git diff-index --quiet HEAD; then
+            git commit -m "Auto-generate slide1.jpg from n8n"
             git push
           else
-            echo "No changes to commit"
+            echo "Нет изменений для коммита"
           fi
