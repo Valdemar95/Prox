@@ -8,7 +8,7 @@ jobs:
   generate:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Обязательно для записи файлов
+      contents: write
       
     steps:
       - name: Checkout repository
@@ -16,23 +16,24 @@ jobs:
 
       - name: Download Image via Curl
         run: |
-          # Кодируем промпт для URL
           ENCODED_PROMPT=$(echo "${{ github.event.client_payload.prompt }}" | jq -sRr @uri)
-          curl -L -o slide1.jpg "https://image.pollinations.ai/p/${ENCODED_PROMPT}?width=1024&height=1024&nologo=true"
+          # Используем -f, чтобы curl выдал ошибку, если статус не 200
+          # Используем --fail-with-body для лучшей диагностики
+          curl -f -L -o slide1.jpg "https://image.pollinations.ai/p/${ENCODED_PROMPT}?width=1024&height=1024&nologo=true"
           
       - name: Commit and Push
         run: |
-          # Настраиваем личность робота
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Добавляем файл
-          git add slide1.jpg
+          # Проверяем, что файл не пустой и не содержит ошибку "404"
+          if grep -q "404" slide1.jpg; then
+            echo "Ошибка: Картинка не найдена (404)"
+            exit 1
+          fi
           
-          # Коммитим, только если есть изменения
+          git add slide1.jpg
           if ! git diff-index --quiet HEAD; then
-            git commit -m "Auto-generate slide1.jpg from n8n"
+            git commit -m "Generated new slide1.jpg"
             git push
-          else
-            echo "Нет изменений для коммита"
           fi
