@@ -22,7 +22,7 @@ jobs:
           CLEAN_PROMPT=$(echo "${{ github.event.client_payload.prompt }}" | tr -d '\n\r"' | xargs)
           
           # Запрос к Stability AI (модель Core)
-          curl -f -sS -X POST https://api.stability.ai/v2beta/stable-image/generate/core \
+          curl -f -sS -X POST https://api.stability.ai/v2beta/stable-image/generate/core  \
             -H "authorization: Bearer $API_KEY" \
             -H "accept: image/*" \
             -F "prompt=$CLEAN_PROMPT" \
