@@ -22,9 +22,21 @@ jobs:
         env:
           API_KEY: ${{ secrets.STABILITY_API_KEY }}
         run: |
+          # Логируем весь payload для отладки
+          echo "Full client payload:"
+          echo '${{ toJson(github.event.client_payload) }}'
+          
           # Подготовка промпта
-          CLEAN_PROMPT=$(echo "${{ github.event.client_payload.prompt }}" | tr -d '\n\r"' | xargs)
+          RAW_PROMPT="${{ github.event.client_payload.prompt }}"
+          CLEAN_PROMPT=$(echo "$RAW_PROMPT" | tr -d '\n\r"' | xargs)
+          echo "Raw prompt: $RAW_PROMPT"
           echo "Clean prompt: $CLEAN_PROMPT"
+          
+          # Проверяем, что промпт не пустой
+          if [ -z "$CLEAN_PROMPT" ]; then
+            echo "Error: Prompt is empty!"
+            exit 1
+          fi
           
           # Запрос к Stability AI (модель Core)
           RESPONSE=$(curl -v -sS -w "%{http_code}" -X POST https://api.stability.ai/v2beta/stable-image/generate/core \
