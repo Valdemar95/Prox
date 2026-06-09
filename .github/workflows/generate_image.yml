@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate Image via Stability AI
         env:
@@ -20,14 +22,24 @@ jobs:
         run: |
           # Подготовка промпта
           CLEAN_PROMPT=$(echo "${{ github.event.client_payload.prompt }}" | tr -d '\n\r"' | xargs)
+          echo "Clean prompt: $CLEAN_PROMPT"
           
           # Запрос к Stability AI (модель Core)
-          curl -f -sS -X POST https://api.stability.ai/v2beta/stable-image/generate/core  \
+          RESPONSE=$(curl -v -sS -w "%{http_code}" -X POST https://api.stability.ai/v2beta/stable-image/generate/core \
             -H "authorization: Bearer $API_KEY" \
             -H "accept: image/*" \
             -F "prompt=$CLEAN_PROMPT" \
             -F "output_format=jpeg" \
-            -o slide1.jpg
+            -o slide1.jpg)
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          echo "HTTP Status Code: $HTTP_CODE"
+          
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "Error generating image"
+            cat slide1.jpg 2>/dev/null || true
+            exit 1
+          fi
           
       - name: Commit and Push
         run: |
